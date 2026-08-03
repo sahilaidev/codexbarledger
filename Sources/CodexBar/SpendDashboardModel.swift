@@ -584,7 +584,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         calendar: Calendar) -> [DailySummary]
     {
         guard !summaries.isEmpty,
-              summaries.allSatisfy({ !$0.hasInvalidCostHistory }),
+              summaries.allSatisfy({ $0.totalCost != nil }),
               let coverage = commonCoverageInterval(summaries: summaries)
         else { return [] }
 

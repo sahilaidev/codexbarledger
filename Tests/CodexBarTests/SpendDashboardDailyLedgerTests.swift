@@ -130,6 +130,27 @@ struct SpendDashboardDailyLedgerTests {
         #expect(group.dailySummaries.isEmpty)
     }
 
+    @Test
+    func `daily ledger is unavailable when aggregate cost is unknown`() throws {
+        let input = SpendDashboardModel.ProviderInput(
+            id: "claude",
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: CostUsageTokenSnapshot(
+                sessionTokens: nil,
+                sessionCostUSD: nil,
+                last30DaysTokens: nil,
+                last30DaysCostUSD: nil,
+                currencyCode: "USD",
+                historyDays: 3,
+                daily: [],
+                updatedAt: Self.now))
+        let group = try #require(Self.group(inputs: [input]))
+
+        #expect(group.totalCost == nil)
+        #expect(group.dailySummaries.isEmpty)
+    }
+
     private static func group(inputs: [SpendDashboardModel.ProviderInput]) -> SpendDashboardModel.CurrencyGroup? {
         SpendDashboardModel.build(
             inputs: inputs,
