@@ -447,6 +447,7 @@ private struct SpendCurrencySection: View {
             SpendProviderPanel(group: self.group)
             SpendModelPanel(group: self.group)
             SpendDailyChart(group: self.group)
+            SpendDailyLedger(group: self.group)
         }
     }
 }
@@ -649,6 +650,120 @@ private struct SpendDailyChart: View {
     private func providerColor(_ provider: UsageProvider) -> Color {
         let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
         return Color(red: color.red, green: color.green, blue: color.blue)
+    }
+}
+
+private struct SpendDailyLedger: View {
+    let group: SpendDashboardModel.CurrencyGroup
+
+    var body: some View {
+        SpendDashboardPanel {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(L("Daily estimated spend"))
+                    .font(.headline)
+                    .padding(.bottom, 10)
+
+                if self.group.dailySummaries.isEmpty {
+                    ContentUnavailableView(
+                        L("Spend unavailable"),
+                        systemImage: "calendar.badge.exclamationmark")
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                } else {
+                    self.header
+                    Divider()
+                    LazyVStack(spacing: 0) {
+                        ForEach(self.group.dailySummaries.reversed()) { summary in
+                            SpendDailyLedgerRow(
+                                summary: summary,
+                                currencyCode: self.group.currencyCode)
+                            if summary.day != self.group.dailySummaries.first?.day {
+                                Divider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Text(L("Day")).frame(width: 112, alignment: .leading)
+            Text(L("Providers")).frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
+            Text(L("Tracked tokens")).frame(width: 90, alignment: .trailing)
+            Text(L("Requests")).frame(width: 72, alignment: .trailing)
+            Text(L("Estimated spend")).frame(width: 116, alignment: .trailing)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+}
+
+private struct SpendDailyLedgerRow: View {
+    let summary: SpendDashboardModel.DailySummary
+    let currencyCode: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(self.summary.day, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                .frame(width: 112, alignment: .leading)
+            self.providerMix
+                .frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
+            Text(self.summary.totalTokens.map(UsageFormatter.tokenCountString) ?? "—")
+                .frame(width: 90, alignment: .trailing)
+            Text(self.summary.requestCount.map(codexBarLocalizedInteger) ?? "—")
+                .frame(width: 72, alignment: .trailing)
+            Text(UsageFormatter.currencyString(
+                self.summary.totalCost,
+                currencyCode: self.currencyCode))
+                .fontWeight(.medium)
+                .frame(width: 116, alignment: .trailing)
+        }
+        .monospacedDigit()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(self.accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private var providerMix: some View {
+        if self.activeProviders.isEmpty {
+            Text(L("No usage yet"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 5) {
+                ForEach(self.activeProviders.prefix(4)) { row in
+                    SpendProviderIcon(provider: row.provider)
+                        .help(row.displayName)
+                }
+                if self.activeProviders.count > 4 {
+                    Text("+\(codexBarLocalizedInteger(self.activeProviders.count - 4))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var activeProviders: [SpendDashboardModel.DailyProviderRow] {
+        self.summary.providers.filter(\.hasUsage)
+    }
+
+    private var accessibilityLabel: String {
+        let day = self.summary.day.formatted(
+            .dateTime.weekday(.wide).day().month(.wide).year().locale(codexBarLocalizedLocale()))
+        let providers = self.activeProviders.isEmpty
+            ? L("No usage yet")
+            : self.activeProviders.map(\.displayName).joined(separator: ", ")
+        let tokens = self.summary.totalTokens.map(UsageFormatter.tokenCountString) ?? "—"
+        let requests = self.summary.requestCount.map(codexBarLocalizedInteger) ?? "—"
+        let spend = UsageFormatter.currencyString(self.summary.totalCost, currencyCode: self.currencyCode)
+        return "\(day), \(L("Providers")): \(providers), \(L("Tracked tokens")): \(tokens), "
+            + "\(L("Requests")): \(requests), \(L("Estimated spend")): \(spend)"
     }
 }
 
