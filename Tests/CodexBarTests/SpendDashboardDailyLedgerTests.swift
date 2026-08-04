@@ -5,6 +5,20 @@ import Testing
 
 struct SpendDashboardDailyLedgerTests {
     @Test
+    func `daily ledger date text follows the selected app locale`() {
+        let day = Self.date(day: 16)
+        let english = CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            spendDashboardLedgerDateText(day)
+        }
+        let german = CodexBarLocalizationOverride.$appLanguage.withValue("de") {
+            spendDashboardLedgerDateText(day)
+        }
+
+        #expect(english != german)
+        #expect(german.contains("Juli"))
+    }
+
+    @Test
     func `daily ledger aggregates providers and fills covered zero days`() throws {
         let claude = Self.input(
             id: "claude",

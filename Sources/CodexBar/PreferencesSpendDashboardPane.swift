@@ -15,6 +15,11 @@ func spendDashboardDayRangeText(_ days: Int) -> String {
         with: codexBarLocalizedInteger(days))
 }
 
+func spendDashboardLedgerDateText(_ day: Date, locale: Locale = codexBarLocalizedLocale()) -> String {
+    day.formatted(
+        .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale))
+}
+
 func spendDashboardRankText(_ rank: Int) -> String {
     "#\(codexBarLocalizedInteger(rank))"
 }
@@ -653,6 +658,24 @@ private struct SpendDailyChart: View {
     }
 }
 
+private enum SpendDailyLedgerLayout {
+    static let dayWidth: CGFloat = 112
+    static let providerMinimumWidth: CGFloat = 96
+    static let trackedTokensWidth: CGFloat = 90
+    static let requestsWidth: CGFloat = 72
+    static let estimatedSpendWidth: CGFloat = 116
+    static let columnSpacing: CGFloat = 12
+    static let horizontalPadding: CGFloat = 8
+    static let minimumTableWidth: CGFloat =
+        dayWidth
+            + providerMinimumWidth
+            + trackedTokensWidth
+            + requestsWidth
+            + estimatedSpendWidth
+            + (columnSpacing * 4)
+            + (horizontalPadding * 2)
+}
+
 private struct SpendDailyLedger: View {
     let group: SpendDashboardModel.CurrencyGroup
 
@@ -669,17 +692,22 @@ private struct SpendDailyLedger: View {
                         systemImage: "calendar.badge.exclamationmark")
                         .frame(maxWidth: .infinity, minHeight: 120)
                 } else {
-                    self.header
-                    Divider()
-                    LazyVStack(spacing: 0) {
-                        ForEach(self.group.dailySummaries.reversed()) { summary in
-                            SpendDailyLedgerRow(
-                                summary: summary,
-                                currencyCode: self.group.currencyCode)
-                            if summary.day != self.group.dailySummaries.first?.day {
-                                Divider()
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            self.header
+                            Divider()
+                            LazyVStack(spacing: 0) {
+                                ForEach(self.group.dailySummaries.reversed()) { summary in
+                                    SpendDailyLedgerRow(
+                                        summary: summary,
+                                        currencyCode: self.group.currencyCode)
+                                    if summary.day != self.group.dailySummaries.first?.day {
+                                        Divider()
+                                    }
+                                }
                             }
                         }
+                        .frame(minWidth: SpendDailyLedgerLayout.minimumTableWidth, alignment: .leading)
                     }
                 }
             }
@@ -687,16 +715,25 @@ private struct SpendDailyLedger: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Text(L("Day")).frame(width: 112, alignment: .leading)
-            Text(L("Providers")).frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
-            Text(L("Tracked tokens")).frame(width: 90, alignment: .trailing)
-            Text(L("Requests")).frame(width: 72, alignment: .trailing)
-            Text(L("Estimated spend")).frame(width: 116, alignment: .trailing)
+        HStack(spacing: SpendDailyLedgerLayout.columnSpacing) {
+            Text(L("Day")).frame(width: SpendDailyLedgerLayout.dayWidth, alignment: .leading)
+            Text(L("Providers")).frame(
+                minWidth: SpendDailyLedgerLayout.providerMinimumWidth,
+                maxWidth: .infinity,
+                alignment: .leading)
+            Text(L("Tracked tokens")).frame(
+                width: SpendDailyLedgerLayout.trackedTokensWidth,
+                alignment: .trailing)
+            Text(L("Requests")).frame(
+                width: SpendDailyLedgerLayout.requestsWidth,
+                alignment: .trailing)
+            Text(L("Estimated spend")).frame(
+                width: SpendDailyLedgerLayout.estimatedSpendWidth,
+                alignment: .trailing)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, SpendDailyLedgerLayout.horizontalPadding)
         .padding(.vertical, 6)
     }
 }
@@ -706,23 +743,26 @@ private struct SpendDailyLedgerRow: View {
     let currencyCode: String
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text(self.summary.day, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                .frame(width: 112, alignment: .leading)
+        HStack(spacing: SpendDailyLedgerLayout.columnSpacing) {
+            Text(spendDashboardLedgerDateText(self.summary.day))
+                .frame(width: SpendDailyLedgerLayout.dayWidth, alignment: .leading)
             self.providerMix
-                .frame(minWidth: 96, maxWidth: .infinity, alignment: .leading)
+                .frame(
+                    minWidth: SpendDailyLedgerLayout.providerMinimumWidth,
+                    maxWidth: .infinity,
+                    alignment: .leading)
             Text(self.summary.totalTokens.map(UsageFormatter.tokenCountString) ?? "—")
-                .frame(width: 90, alignment: .trailing)
+                .frame(width: SpendDailyLedgerLayout.trackedTokensWidth, alignment: .trailing)
             Text(self.summary.requestCount.map(codexBarLocalizedInteger) ?? "—")
-                .frame(width: 72, alignment: .trailing)
+                .frame(width: SpendDailyLedgerLayout.requestsWidth, alignment: .trailing)
             Text(UsageFormatter.currencyString(
                 self.summary.totalCost,
                 currencyCode: self.currencyCode))
                 .fontWeight(.medium)
-                .frame(width: 116, alignment: .trailing)
+                .frame(width: SpendDailyLedgerLayout.estimatedSpendWidth, alignment: .trailing)
         }
         .monospacedDigit()
-        .padding(.horizontal, 8)
+        .padding(.horizontal, SpendDailyLedgerLayout.horizontalPadding)
         .padding(.vertical, 10)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(self.accessibilityLabel)
